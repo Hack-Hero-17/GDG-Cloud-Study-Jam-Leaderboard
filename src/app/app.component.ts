@@ -3,11 +3,16 @@ import { HttpClient } from '@angular/common/http';
 import * as Papa from 'papaparse';
 
 interface UserProfile {
-  email: string;
   username: string;
+  email: string;
   skillsBoostUrl: string;
+  profileStatus: string;
+  accessCode: string;
+  allCompleted: string;
   badges: number;
+  badgeNames: string;
   arcade_status: number;
+  arcadeNames: string;
   rank: number;
   swag: boolean;
 }
@@ -19,9 +24,6 @@ interface UserProfile {
 })
 export class AppComponent implements OnInit {
   ProfilesList: UserProfile[] = [];
-  // topProfiles: UserProfile[] = [];
-  // swappedProfiles: UserProfile[] = [];
-  // remainingProfiles: UserProfile[] = [];
   filteredProfiles: UserProfile[] = [];
   searchText: string = '';
   lastUpdatedDate: string = '';
@@ -39,7 +41,6 @@ export class AppComponent implements OnInit {
   ngOnInit() {
     this.startCountdown();
     this.readCSV();
-    this.triggerPartyPopperAnimation();
     this.extractLastUpdatedDate();
   }
   clearSearch() {
@@ -47,22 +48,7 @@ export class AppComponent implements OnInit {
     this.filterProfiles();
   }
 
-  // Function to trigger party popper animation on page load
-  triggerPartyPopperAnimation() {
-    const poppers = document.querySelectorAll('.popper');
-
-    poppers.forEach((popper, index) => {
-      const popperElement = popper as HTMLElement; // Cast to HTMLElement
-      // Delay the animation for each popper to create a staggered effect
-      setTimeout(() => {
-        popperElement.style.animation = 'party-popper 1s forwards'; // Apply the animation
-      }, index * 300); // Delay based on index (0s, 300ms, 600ms)
-    });
-  }
-
   readCSV() {
-    const fileName = 'GenAI.csv';
-    // this.extractLastUpdatedDate(fileName);
     this.http.get('assets/GenAI.csv', { responseType: 'text' }).subscribe(
       (data) => {
         this.parseCSV(data);
@@ -79,58 +65,31 @@ export class AppComponent implements OnInit {
       skipEmptyLines: true,
       complete: (result) => {
         const profiles: UserProfile[] = result.data.map((row: any) => ({
-          email: row['User Email'],
           username: row['User Name'],
+          email: row['User Email'],
           skillsBoostUrl: row['Google Cloud Skills Boost Profile URL'],
+          profileStatus: row['Profile URL Status'],
+          accessCode: row['Access Code Redemption Status'],
+          allCompleted: row['All Skill Badges & Games Completed'],
           badges: parseInt(row['# of Skill Badges Completed'], 10) || 0,
-          arcade_status: parseInt(row['# of Arcade Games Completed'], 10),
+          badgeNames: row['Names of Completed Skill Badges'],
+          arcade_status: parseInt(row['# of Arcade Games Completed'], 10) || 0,
+          arcadeNames: row['Names of Completed Arcade Games'],
           rank: 0,
           swag:
-            parseInt(row['# of Arcade Games Completed'], 10) == 1 &&
+            parseInt(row['# of Arcade Games Completed'], 10) === 1 &&
             parseInt(row['# of Skill Badges Completed'], 10) >= 15,
         }));
 
-        // profiles.sort((a, b) => b.badges - a.badges);
         profiles.sort((a, b) => {
-          // Sort by badges first
-          if (b.badges !== a.badges) {
-            return b.badges - a.badges; // Descending order for badges
-          }
-
-          // If badges are the same, prioritize arcade_status
-          return b.arcade_status - a.arcade_status; // Descending order for arcade_status (1 comes before 0)
+          if (b.badges !== a.badges) return b.badges - a.badges;
+          return b.arcade_status - a.arcade_status;
         });
-        // profiles.forEach((profile, index) => {
-        //   profile.rank = index + 1;
-        // });
-        let currentRank = 1;
-        let lastBadges = null;
-        let lastArcadeStatus = null;
 
-        for (let i = 0; i < profiles.length; i++) {
-          const profile = profiles[i];
+        profiles.forEach((p, i) => (p.rank = i + 1));
 
-          if (
-            profile.badges !== lastBadges ||
-            profile.arcade_status !== lastArcadeStatus
-          ) {
-            currentRank = i + 1;
-            lastBadges = profile.badges;
-            lastArcadeStatus = profile.arcade_status;
-          }
-
-          profile.rank = currentRank;
-        }
-        // this.topProfiles = profiles.slice(0, 3);
-        // this.swappedProfiles = [...this.topProfiles];
-        // const temp = this.swappedProfiles[0];
-        // this.swappedProfiles[0] = this.swappedProfiles[1];
-        // this.swappedProfiles[1] = temp;
-
-        // this.remainingProfiles = profiles.slice(3);
-        // this.filteredProfiles = [...this.remainingProfiles];
         this.ProfilesList = profiles;
-        this.filteredProfiles = [...this.ProfilesList];
+        this.filteredProfiles = [...profiles];
         this.filterProfiles();
       },
     });
@@ -148,14 +107,12 @@ export class AppComponent implements OnInit {
             year: 'numeric',
           });
 
-          // Format the time (e.g., 06:30 PM)
           const formattedTime = date.toLocaleTimeString('en-US', {
             hour: '2-digit',
             minute: '2-digit',
             hour12: true,
           });
 
-          // Combine date and time
           this.lastUpdatedDate = `${formattedDate}, ${formattedTime}`;
           const previous = new Date(date);
           previous.setDate(date.getDate() - 1);
@@ -180,12 +137,10 @@ export class AppComponent implements OnInit {
       );
     }
     this.pg = 1;
-    console.log(this.filteredProfiles);
   }
 
-  //logic for pagination:
-  pg: number = 1; // Current page
-  fetchPages: number = 5; // Default number of items per page
+  pg: number = 1;
+  fetchPages: number = 5;
 
   get paginatedProfiles() {
     const startIndex = (this.pg - 1) * this.fetchPages;
@@ -197,8 +152,8 @@ export class AppComponent implements OnInit {
 
   onPageChange(event: Event): void {
     const selectElement = event.target as HTMLSelectElement;
-    this.fetchPages = +selectElement.value; // Update items per page
-    this.pg = 1; // Reset to the first page
+    this.fetchPages = +selectElement.value;
+    this.pg = 1;
   }
 
   nextPage(): void {
